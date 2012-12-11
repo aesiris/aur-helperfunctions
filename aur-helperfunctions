@@ -1,14 +1,30 @@
 #!/bin/bash
 
-DBNAME=local
-DBFILE=/data/build/pkg.tar.xz/local.db.tar.gz
-SRCDIR=$HOME/src
-PKGBUILDIR=$HOME
-EXCLUDEFILE=$HOME/mine
+[[ -f $HOME/.aur-helperfunctions.conf ]] && . $HOME/.aur-helperfunctions.conf
+
+: ${REPONAME:=aur}
+: ${REPODIR:=$HOME/aur/repo}
+: ${REPODB:=$REPODIR/${REPONAME}.db.tar.gz}
+: ${SRCDIR:=$HOME/aur/src}
+: ${PKGBUILDIR:=$HOME/aur/src}
+: ${EXCLUDEFILE:=$HOME/aur/exclude}
+
+aur-help-pacman() {
+	cat<<-END
+		# paste and run this from a root shell, or add to pacman.conf the lines between EOFs
+		cat >> /etc/pacman.conf <<EOF
+
+		[$REPONAME]
+		SigLevel = Optional TrustAll
+		Server = file://$REPODIR
+		EOF
+	END
+}
 
 aur-get() {
 	echo 'getting package '$1' from AUR'
-	cd "$SRCDIR" && [[ -e "$1.tar.gz" ]] && mv "$1.tar.gz" "$1-old.tar.gz"
+	pushd "$SRCDIR" || return 1
+	[[ -e "$1.tar.gz" ]] && mv "$1.tar.gz" "$1-old.tar.gz"
 	if wget -q "https://aur.archlinux.org/packages/${1:0:2}/$1/$1.tar.gz"; then
 		cd "$PKGBUILDIR" && tar xf "$SRCDIR/$1.tar.gz" && cd "$1"
 	else
@@ -16,16 +32,16 @@ aur-get() {
 	fi
 	if (($?!=0)); then
 		echo "error $1" >&2
-		cd "$HOME"
+		pushd
 	fi
 }
 
 local-packages() {
 	#LANG=C pacman -Sl local | grep installed | cut -f 2,3 -d " "
 	if [[ "$1" == "allpkg" ]]; then
-		LANG=C pacman -Sl $DBNAME | awk -F " " '{ print $2,$3;}'
+		LANG=C pacman -Sl $REPONAME | awk -F " " '{ print $2,$3;}'
 	else
-		LANG=C pacman -Sl $DBNAME | awk -F " " '/installed/ { print $2,$3;}'
+		LANG=C pacman -Sl $REPONAME | awk -F " " '/installed/ { print $2,$3;}'
 	fi
 }
 
@@ -152,15 +168,15 @@ aur-check () {
 }
 
 repo-upd() {
-	repo-add $(find /data/build/pkg.tar.xz/ -mtime -1 -type f -iname '*.tar.xz' )
+	repo-add $(find "$REPODIR" -mtime -1 -type f -iname '*.tar.xz' )
 }
 
 repo-add() {
-	command repo-add "$DBFILE" "$@"
+	command repo-add "$REPODB" "$@"
 }
 
 repo-remove() {
-	command repo-remove "$DBFILE" "$@"
+	command repo-remove "$REPODB" "$@"
 }
 
 makepkg() {
