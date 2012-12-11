@@ -11,7 +11,7 @@ fi
 : ${REPODB:=$REPODIR/${REPONAME}.db.tar.gz}
 : ${SRCDIR:=$HOME/aur/src}
 : ${PKGBUILDIR:=$HOME/aur/src}
-: ${EXCLUDEFILE:=$HOME/aur/exclude}
+: ${EXCLUDE:=$HOME/aur/exclude}
 
 for dir in "${SRCDIR}" "${REPODIR}" "${PKGBUILDIR}"; do
 	if [[ ! -d "$dir" ]]; then
@@ -49,10 +49,28 @@ aur-get() {
 }
 
 aur-local-packages() {
-	if [[ "$1" == "allpkg" ]]; then
-		LANG=C pacman -Sl $REPONAME | awk -F " " '{ print $2,$3;}'
+	local pacout=$( LANG=C pacman -Sl "$REPONAME" )
+	local allpkg="" exclude=""
+	while [[ "$1" ]]; do
+		case "$1" in
+			"-a" ) allpkg=yes;;
+		  	"-e" ) exclude=yes;;
+		esac
+		shift
+	done
+
+	if [[ "$exclude" ]] && [[ "$EXCLUDE" ]]; then
+		if [[ -e "$EXCLUDE" ]] && [[ "${EXCLUDE:0:1}" == "/" ]] ; then
+			pacout=$( grep -v -F -f "$EXCLUDE" <<<"$pacout" )
+		else
+			local excludes=$( sed -e 's/,/\n/g' <<<"$EXCLUDE" )
+			pacout=$( grep -v -F -e "$excludes" <<<"$pacout" )	
+		fi
+	fi
+	if [[ "$allpkg" ]]; then
+		awk -F " " '{ print $2,$3;}' <<<"$pacout"
 	else
-		LANG=C pacman -Sl $REPONAME | awk -F " " '/installed/ { print $2,$3;}'
+		awk -F " " '/installed/ { print $2,$3;}' <<<"$pacout"
 	fi
 }
 
@@ -126,11 +144,11 @@ version_lt () { ! version_ge "$1" "$2"; }
 version_le () { ! version_gt "$1" "$2"; }
 
 aur-check () {
-	local allpkg showall
+	local allpkg="" showall=""
 	while [[ "$1" ]]; do
 		case "$1" in
-		  	"-v" ) showall=showall;;
-			"-a" ) allpkg=allpkg;;
+		  	"-v" ) showall=yes;;
+			"-a" ) allpkg="-a";;
 		esac
 		shift
 	done
@@ -143,7 +161,7 @@ aur-check () {
 	while read package version; do
 		packages+=("$package")
 		localversion["$package"]="$version"
-	done < <( aur-local-packages "$allpkg" | grep -v -F -f "$EXCLUDEFILE" )
+	done < <( aur-local-packages "$allpkg" -e )
 	
 	local -A aurversion=()
 	local -A aurmaint=()
