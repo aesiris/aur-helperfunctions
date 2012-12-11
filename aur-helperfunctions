@@ -13,6 +13,13 @@ fi
 : ${PKGBUILDIR:=$HOME/aur/src}
 : ${EXCLUDEFILE:=$HOME/aur/exclude}
 
+for dir in "${SRCDIR}" "${REPODIR}" "${PKGBUILDIR}"; do
+	if [[ ! -d "$dir" ]]; then
+		echo "missing directory: $dir"
+		echo "fix before doing anything"
+	fi
+done
+
 if ! grep -q "[$REPONAME]" /etc/pacman.conf; then
 	cat<<-END
 		# repo $REPONAME not configured in pacman.conf 
