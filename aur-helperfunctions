@@ -13,7 +13,7 @@ fi
 : ${PKGBUILDIR:=$HOME/aur/src}
 : ${EXCLUDEFILE:=$HOME/aur/exclude}
 
-if ! grep "[$REPONAME]" /etc/pacman.conf; then
+if ! grep -q "[$REPONAME]" /etc/pacman.conf; then
 	cat<<-END
 		# repo $REPONAME not configured in pacman.conf 
 		# paste and run this from a root shell, or add to pacman.conf the lines between EOFs
