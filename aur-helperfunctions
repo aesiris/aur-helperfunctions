@@ -1,6 +1,10 @@
 #!/bin/bash
 
-[[ -f $HOME/.aur-helperfunctions.conf ]] && . $HOME/.aur-helperfunctions.conf
+if [[ -f $HOME/.aur-helperfunctions.conf ]]; then
+	. $HOME/.aur-helperfunctions.conf
+else
+	[[ "$REPONAME" ]] || echo 'please configure ~/.aur-helperfunctions.conf and resource before doing anything'
+fi
 
 : ${REPONAME:=aur}
 : ${REPODIR:=$HOME/aur/repo}
@@ -9,8 +13,9 @@
 : ${PKGBUILDIR:=$HOME/aur/src}
 : ${EXCLUDEFILE:=$HOME/aur/exclude}
 
-aur-help-pacman() {
+if ! grep "[$REPONAME]" /etc/pacman.conf; then
 	cat<<-END
+		# repo $REPONAME not configured in pacman.conf 
 		# paste and run this from a root shell, or add to pacman.conf the lines between EOFs
 		cat >> /etc/pacman.conf <<EOF
 
@@ -19,7 +24,7 @@ aur-help-pacman() {
 		Server = file://$REPODIR
 		EOF
 	END
-}
+fi
 
 aur-get() {
 	echo 'getting package '$1' from AUR'
@@ -46,11 +51,16 @@ aur-local-packages() {
 
 aur-search () {
 	local json="$( wget "https://aur.archlinux.org/rpc.php?type=search&arg=$1" -o /dev/null -O - )"
+
 	if [[ ! "$json" ]] || grep error <( jshon <<<"$json" -e type ) > /dev/null; then
 		echo "Failed to search $1"
 		return 1
 	fi
-	
+	if [[ "$( jshon <<<"$json" -e results -l )" == 0 ]]; then
+		echo "0 matching packages in AUR"
+		return 1
+	fi
+
 	exec 3< <( jshon <<<"$json" -e results -a -e Name -u )
 	exec 4< <( jshon <<<"$json" -e results -a -e Description -u )
 	local name; local description
@@ -75,6 +85,10 @@ aur-info() {
 
 	if [[ ! "$json" ]] || grep error <( jshon <<<"$json" -e type ) > /dev/null; then
 		echo "Failed to get any AUR info"
+		return 1
+	fi
+	if [[ "$( jshon <<<"$json" -e results -l )" == 0 ]]; then
+		echo "0 matching packages in AUR"
 		return 1
 	fi
 
@@ -210,15 +224,3 @@ makepkg() {
 		[[ -e "$file" ]] && repo-add "${file}"
 	fi
 }
-
-SHOWHELP="aur-check:	controlla su AUR se ci sono pacchetti più recenti di quelli installati
-aur-get pk:	scarica da AUR i sorgenti per il pacchetto pkg
-aur-info pks:	scarica da AUR le informazioni sui pacchetti
-aur-search:	ricerca su AUR
-makepkg:	compila il pacchetto e aggiunge automaticamente al repo
-repo-upd:	aggiunge nel repo i pacchetti compilati oggi
-repo-add pk:	aggiunge nel repo il pacchetto pk
-repo-remove pk:	rimuove dal repo il pacchetto pk
-sobump:		controlla se ci sono librerie mancanti nei pacchetti installati"
-
-
