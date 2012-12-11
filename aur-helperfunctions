@@ -1,0 +1,182 @@
+#!/bin/bash
+
+DBNAME=local
+DBFILE=/data/build/pkg.tar.xz/local.db.tar.gz
+SRCDIR=$HOME/src
+PKGBUILDIR=$HOME
+EXCLUDEFILE=$HOME/mine
+
+aur-get() {
+	echo 'getting package '$1' from AUR'
+	cd "$SRCDIR" && [[ -e "$1.tar.gz" ]] && mv "$1.tar.gz" "$1-old.tar.gz"
+	if wget -q "https://aur.archlinux.org/packages/${1:0:2}/$1/$1.tar.gz"; then
+		cd "$PKGBUILDIR" && tar xf "$SRCDIR/$1.tar.gz" && cd "$1"
+	else
+		false
+	fi
+	if (($?!=0)); then
+		echo "error $1" >&2
+		cd "$HOME"
+	fi
+}
+
+local-packages() {
+	#LANG=C pacman -Sl local | grep installed | cut -f 2,3 -d " "
+	if [[ "$1" == "allpkg" ]]; then
+		LANG=C pacman -Sl $DBNAME | awk -F " " '{ print $2,$3;}'
+	else
+		LANG=C pacman -Sl $DBNAME | awk -F " " '/installed/ { print $2,$3;}'
+	fi
+}
+
+aur-search () {
+	local json="$( wget "https://aur.archlinux.org/rpc.php?type=search&arg=$1" -o /dev/null -O - )"
+	if [[ ! "$json" ]] || grep error <( jshon <<<"$json" -e type ) > /dev/null; then
+		echo "Failed to search $1"
+		return 1
+	fi
+	
+	exec 3< <( jshon <<<"$json" -e results -a -e Name -u )
+	exec 4< <( jshon <<<"$json" -e results -a -e Description -u )
+	local name; local description
+	while read name <&3 && read description <&4; do
+		echo "$name: $description"
+	done
+	exec 3<&- 4<&-
+}
+
+aur-info() {
+	if [[ "$1" == "-a" ]]; then
+		shift
+		local getver=yes
+	fi
+
+	local args=""
+	local pkg
+	for pkg in "$@"; do
+		args+='&arg[]='"$pkg"
+	done
+	local json="$( wget "https://aur.archlinux.org/rpc.php?type=multiinfo${args}" -o /dev/null -O - )"
+
+	if [[ ! "$json" ]] || grep error <( jshon <<<"$json" -e type ) > /dev/null; then
+		echo "Failed to get any AUR info"
+		return 1
+	fi
+
+	if ! [[ "$getver" ]]; then
+		jshon <<<"$json" -e results
+	else
+		exec 3< <( jshon <<<"$json" -e results -a -e Name -u )
+		exec 4< <( jshon <<<"$json" -e results -a -e Version -u )
+		exec 5< <( jshon <<<"$json" -e results -a -e Maintainer )
+
+		while read name <&3 && read version <&4 && read maint <&5; do
+			aurversion["$name"]="$version"
+			aurmaint["$name"]="$maint"
+		done
+		exec 3<&- 4<&- 5<&-
+	fi
+}
+
+version_ge () {
+        sort=$(echo -e "$1\n$2" | sort -V)
+        lower=$(head -n 1 <<<"$sort")
+	[[ "$2" == "$lower" ]]
+}
+version_eq () { [[ "$1" == "$2" ]]; }
+version_gt () { ! version_eq "$1" "$2" && version_ge "$1" "$2"; }
+version_ne () { ! version_eq "$1" "$2"; }
+version_lt () { ! version_ge "$1" "$2"; }
+version_le () { ! version_gt "$1" "$2"; }
+
+aur-check () {
+	local allpkg
+	local showall
+	while [[ "$1" ]]; do
+		case "$1" in
+		  	"-v" ) showall=showall;;
+			"-a" ) allpkg=allpkg;;
+		esac
+		shift
+	done
+	local listupdated=()
+	local listtoupdate=()
+	local listnotfound=()
+	local listnotmaintained=()
+	
+	local -A localversion=()
+	local -a packages=()
+	while read package version; do
+		packages+=("$package")
+		localversion["$package"]="$version"
+	done < <( local-packages "$allpkg" | grep -v -F -f "$EXCLUDEFILE" )
+	
+	local -A aurversion=()
+	local -A aurmaint=()
+	aur-info -a "${packages[@]}"
+	(($?==1)) && return 1
+
+	local aur; local loc
+	for package in "${packages[@]}"; do
+		loc="${localversion["$package"]}"
+		aur="${aurversion["$package"]}"
+		if [[ "$aur" ]]; then
+			if version_eq "$loc" "$aur"; then
+				listupdated=( "${listupdated[@]}" "$package" )
+			elif version_gt "$loc" "$aur"; then
+				listupdated=( "${listupdated[@]}" "$package ($loc > $aur)" )
+			else
+				listtoupdate=( "${listtoupdate[@]}" "$package ($loc < $aur)" )
+			fi
+			if [[ "${aurmaint["$package"]}" == null ]]; then
+				listnotmaintained=( "${listnotmaintained[@]}" "$package" )
+			fi
+		else
+			listnotfound=( "${listnotfound[@]}" "$package" )
+		fi
+	done
+	
+	local OLDIFS="$IFS"
+		IFS=$'\n'
+		local COLG="\033[1;32m"; local COLR="\033[1;31m"; local COLN="\033[0m"; local COLE="\033[1;39m"
+		[[ "$showall" ]] && ((${#listupdated[@]}>0)) &&\
+			echo -e "${COLG}Aggiornati${COLN}\n${listupdated[*]}${COLN}"
+		((${#listnotmaintained[@]}>0)) &&\
+			echo -e "${COLR}Non più mantenuti${COLN}\n${listnotmaintained[*]}${COLN}"
+		((${#listnotfound[@]}>0)) &&\
+			echo -e "${COLR}Non Trovati in AUR${COLN}\n${listnotfound[*]}${COLN}"
+		((${#listtoupdate[@]}>0)) &&\
+			echo -e "${COLR}Da Aggiornare${COLE}\n${listtoupdate[*]}${COLN}" ||\
+			echo -e "${COLG}Nessuno da aggiornare${COLN}"
+	IFS="$OLDIFS"
+}
+
+repo-upd() {
+	repo-add $(find /data/build/pkg.tar.xz/ -mtime -1 -type f -iname '*.tar.xz' )
+}
+
+repo-add() {
+	command repo-add "$DBFILE" "$@"
+}
+
+repo-remove() {
+	command repo-remove "$DBFILE" "$@"
+}
+
+makepkg() {
+	if command makepkg "$@"; then
+		files=(*.tar.xz)
+		file="$( ( IFS=$'\n'; sort -V <<<"${files[*]}"; ) | tail -n 1 )"
+		[[ -e "$file" ]] && repo-add "${file}"
+	fi
+}
+
+SHOWHELP="aur-check:	controlla su AUR se ci sono pacchetti più recenti di quelli installati
+aur-get pk:	scarica da AUR i sorgenti per il pacchetto pkg
+aur-info pks:	scarica da AUR le informazioni sui pacchetti
+aur-search:	ricerca su AUR
+makepkg:	compila il pacchetto e aggiunge automaticamente al repo
+repo-upd:	aggiunge nel repo i pacchetti compilati oggi
+repo-add pk:	aggiunge nel repo il pacchetto pk
+repo-remove pk:	rimuove dal repo il pacchetto pk
+sobump:		controlla se ci sono librerie mancanti nei pacchetti installati"
