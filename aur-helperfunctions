@@ -36,8 +36,7 @@ aur-get() {
 	fi
 }
 
-local-packages() {
-	#LANG=C pacman -Sl local | grep installed | cut -f 2,3 -d " "
+aur-local-packages() {
 	if [[ "$1" == "allpkg" ]]; then
 		LANG=C pacman -Sl $REPONAME | awk -F " " '{ print $2,$3;}'
 	else
@@ -79,7 +78,7 @@ aur-info() {
 		return 1
 	fi
 
-	if ! [[ "$getver" ]]; then
+	if [[ ! "$getver" ]]; then
 		jshon <<<"$json" -e results
 	else
 		exec 3< <( jshon <<<"$json" -e results -a -e Name -u )
@@ -94,20 +93,19 @@ aur-info() {
 	fi
 }
 
+version_eq () { [[ "$1" == "$2" ]]; }
 version_ge () {
         sort=$(echo -e "$1\n$2" | sort -V)
         lower=$(head -n 1 <<<"$sort")
 	[[ "$2" == "$lower" ]]
 }
-version_eq () { [[ "$1" == "$2" ]]; }
 version_gt () { ! version_eq "$1" "$2" && version_ge "$1" "$2"; }
 version_ne () { ! version_eq "$1" "$2"; }
 version_lt () { ! version_ge "$1" "$2"; }
 version_le () { ! version_gt "$1" "$2"; }
 
 aur-check () {
-	local allpkg
-	local showall
+	local allpkg showall
 	while [[ "$1" ]]; do
 		case "$1" in
 		  	"-v" ) showall=showall;;
@@ -115,24 +113,23 @@ aur-check () {
 		esac
 		shift
 	done
-	local listupdated=()
-	local listtoupdate=()
-	local listnotfound=()
-	local listnotmaintained=()
+
+	local listupdated=() listtoupdate=() listnotfound=() listnotmaintained=()
 	
-	local -A localversion=()
+	local -A localversion=() 
 	local -a packages=()
+	local package version
 	while read package version; do
 		packages+=("$package")
 		localversion["$package"]="$version"
-	done < <( local-packages "$allpkg" | grep -v -F -f "$EXCLUDEFILE" )
+	done < <( aur-local-packages "$allpkg" | grep -v -F -f "$EXCLUDEFILE" )
 	
 	local -A aurversion=()
 	local -A aurmaint=()
 	aur-info -a "${packages[@]}"
 	(($?==1)) && return 1
 
-	local aur; local loc
+	local aur loc
 	for package in "${packages[@]}"; do
 		loc="${localversion["$package"]}"
 		aur="${aurversion["$package"]}"
@@ -154,17 +151,44 @@ aur-check () {
 	
 	local OLDIFS="$IFS"
 		IFS=$'\n'
-		local COLG="\033[1;32m"; local COLR="\033[1;31m"; local COLN="\033[0m"; local COLE="\033[1;39m"
+		local COLG="\033[1;32m" COLR="\033[1;31m" COLN="\033[0m" COLE="\033[1;39m"
 		[[ "$showall" ]] && ((${#listupdated[@]}>0)) &&\
-			echo -e "${COLG}Aggiornati${COLN}\n${listupdated[*]}${COLN}"
+			echo -e "${COLG}Updated${COLN}\n${listupdated[*]}${COLN}"
 		((${#listnotmaintained[@]}>0)) &&\
-			echo -e "${COLR}Non più mantenuti${COLN}\n${listnotmaintained[*]}${COLN}"
+			echo -e "${COLR}Unmaintained${COLN}\n${listnotmaintained[*]}${COLN}"
 		((${#listnotfound[@]}>0)) &&\
-			echo -e "${COLR}Non Trovati in AUR${COLN}\n${listnotfound[*]}${COLN}"
+			echo -e "${COLR}Not found in AUR${COLN}\n${listnotfound[*]}${COLN}"
 		((${#listtoupdate[@]}>0)) &&\
-			echo -e "${COLR}Da Aggiornare${COLE}\n${listtoupdate[*]}${COLN}" ||\
-			echo -e "${COLG}Nessuno da aggiornare${COLN}"
+			echo -e "${COLR}To update${COLE}\n${listtoupdate[*]}${COLN}" ||\
+			echo -e "${COLG}None to update${COLN}"
 	IFS="$OLDIFS"
+}
+
+aur-sobump () {
+	local LINKER=/lib/ld-2.16.so 
+	local pkg i missing outraw outpac
+	
+	for pkg in $( aur-local-packages | cut -f 1 -d " " ); do
+		for i in $( pacman -Qql $pkg ); do
+			if $LINKER --verify "$i"; then	
+				missing=$( $LINKER --list "$i" 2>&1 | grep "error while loading shared libraries" | cut -f 1,3 -d ':')
+				if (( ${#missing} != 0 )); then
+					outraw+="$missing\n"
+					outpac+="$pkg\n"
+				fi
+			fi
+		done
+	done
+
+	if ((${#outraw}>0)); then
+		missinglibs=$( cut -f 1 -d ':' <<<"$outraw" )
+		echo "Possible Rebuild:"
+		echo '(type echo "$missinglibs" for missing files")'
+		sort -u <<<"$outpac"
+	else
+		echo "No missing libraries"
+	fi
+
 }
 
 repo-upd() {
@@ -196,3 +220,5 @@ repo-upd:	aggiunge nel repo i pacchetti compilati oggi
 repo-add pk:	aggiunge nel repo il pacchetto pk
 repo-remove pk:	rimuove dal repo il pacchetto pk
 sobump:		controlla se ci sono librerie mancanti nei pacchetti installati"
+
+
