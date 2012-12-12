@@ -1,19 +1,9 @@
 #!/bin/bash
-#
-# aur-helperfunction
-#
-#   Helps managing a local repo of AUR packages
-# 
-# FUNCTIONS
-#  aur-check
-#  aur-sobump
-#  aur-get package
-#  aur-info package [package2 [...]]
-#  aur-search string
-#  makepkg
-#  repo-upd
-#  repo-add package.tar.xz
-#  repo-remove package
+####aur-helperfunction
+##
+##   Helps managing a local repo of AUR packages
+## 
+####FUNCTIONS
 
 if [[ -f $HOME/.aur-helperfunctions.conf ]]; then
 	. $HOME/.aur-helperfunctions.conf
@@ -50,7 +40,7 @@ if ! grep -q "[$REPONAME]" /etc/pacman.conf; then
 fi
 
 aur-get() {
-	# download sources for package from AUR
+	## download sources for package from AUR
 
 	echo 'getting package '$1' from AUR'
 	pushd "$SRCDIR" || return 1
@@ -68,9 +58,9 @@ aur-get() {
 }
 
 aur-local-packages() {
-	# print list of installed packages from local repo
-	# -a: print all packages, including those in repo but not installed
-	# -e: exclude packages from EXCLUDE variable
+	## print list of installed packages from local repo
+	## -a: print all packages, including those in repo but not installed
+	## -e: exclude packages from EXCLUDE variable
 
 	local pacout=$( LANG=C pacman -Sl "$REPONAME" )
 	local allpkg="" exclude=""
@@ -98,7 +88,7 @@ aur-local-packages() {
 }
 
 aur-search () {
-	# search packages matching string on AUR
+	## search packages matching string on AUR
 
 	local json="$( wget "https://aur.archlinux.org/rpc.php?type=search&arg=$1" -o /dev/null -O - )"
 
@@ -121,9 +111,9 @@ aur-search () {
 }
 
 aur-info() {
-	# get package info from AUR
-	# aur-info [-a] package1 [package2 [...]]
-	# -a: fill version array
+	## get package info from AUR
+	## aur-info [-a] package1 [package2 [...]]
+	## -a: fill version array
 
 	if [[ "$1" == "-a" ]]; then
 		shift
@@ -173,9 +163,9 @@ version_lt () { ! version_ge "$1" "$2"; }
 version_le () { ! version_gt "$1" "$2"; }
 
 aur-check () {
-	# check for updates on AUR
-	# -a to check every package in repo (including not installed)
-	# -v verbose output: output packages already up to date
+	## check for updates on AUR
+	## -a to check every package in repo (including not installed)
+	## -v verbose output: output packages already up to date
 
 	local allpkg="" showall=""
 	while (($#>0)); do
@@ -239,7 +229,7 @@ aur-check () {
 }
 
 aur-sobump () {
-	# check for missing dynamic libraries
+	## check for missing dynamic libraries
 
 	local LINKER=/lib/ld-2.16.so 
 	local pkg i missing outraw outpac
@@ -268,30 +258,30 @@ aur-sobump () {
 }
 
 repo-upd() {
-	# updates local repo adding most recently built packages
+	## updates local repo adding most recently built packages
 	repo-add $(find "$REPODIR" -mtime -1 -type f -iname '*.tar.xz' )
 }
 
 repo-add() {
-	# repo-add package.tar.xz
-	# add package to local repo
+	## repo-add package.tar.xz
+	## add package to local repo
 	command repo-add "$REPODB" "$@"
 }
 
 repo-remove() {
-	# repo-remove package
-	# remove package from local repo
+	## repo-remove package
+	## remove package from local repo
 	command repo-remove "$REPODB" "$@"
 }
 
 makepkg() {
-	# wraps makepkg copying most recently built package to local repo
+	## wraps makepkg copying most recently built package to local repo
 
 	export PKGDEST="${REPODIR}"
 	if command makepkg "$@"; then
 		files=(*.tar.xz)
 		#uncomment for only newest version
-		#file="$( ( IFS=$'\n'; sort -V <<<"${files[*]}"; ) | tail -n 1 )"
-		[[ -e "$file" ]] && repo-add "${file}"
+		#files=("$( ( IFS=$'\n'; sort -V <<<"${files[*]}"; ) | tail -n 1 )")
+		[[ -e "$file" ]] && repo-add "${files[@]}"
 	fi
 }
