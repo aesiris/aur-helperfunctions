@@ -1,0 +1,1 @@
+grep -G $'^\t*##' -B 1 aur-helperfunctions | sed -e "s:\(.*\)() {:  \1:;s:#::g;s:--::" > README.md
