@@ -112,9 +112,10 @@ aur-search () {
 
 	exec 3< <( jshon <<<"$json" -e results -a -e Name -u )
 	exec 4< <( jshon <<<"$json" -e results -a -e Description -u )
-	local name description
-	while read name <&3 && read description <&4; do
-		echo -e "$name\n\t$description"
+	exec 5< <( jshon <<<"$json" -e results -a -e Version -u )
+	local name description version
+	while read name <&3 && read description <&4 && read version <&5; do
+		echo -e "$name $version\n    $description"
 	done
 	exec 3<&- 4<&-
 }
