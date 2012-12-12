@@ -1,4 +1,19 @@
 #!/bin/bash
+#
+# aur-helperfunction
+#
+#   Helps managing a local repo of AUR packages
+# 
+# FUNCTIONS
+#  aur-check
+#  aur-sobump
+#  aur-get package
+#  aur-info package [package2 [...]]
+#  aur-search string
+#  makepkg
+#  repo-upd
+#  repo-add package.tar.xz
+#  repo-remove package
 
 if [[ -f $HOME/.aur-helperfunctions.conf ]]; then
 	. $HOME/.aur-helperfunctions.conf
@@ -21,6 +36,7 @@ for dir in "${SRCDIR}" "${REPODIR}" "${PKGBUILDIR}"; do
 done
 
 if ! grep -q "[$REPONAME]" /etc/pacman.conf; then
+	# tell how to add local repo to /etc/pacman.conf
 	cat<<-END
 		# repo $REPONAME not configured in pacman.conf 
 		# paste and run this from a root shell, or add to pacman.conf the lines between EOFs
@@ -34,9 +50,12 @@ if ! grep -q "[$REPONAME]" /etc/pacman.conf; then
 fi
 
 aur-get() {
+	# download sources for package from AUR
+
 	echo 'getting package '$1' from AUR'
 	pushd "$SRCDIR" || return 1
-	[[ -e "$1.tar.gz" ]] && mv "$1.tar.gz" "$1-old.tar.gz"
+	[[ -d "$PKGBUILDIR/$1" ]] && mv "$PKGBUILDIR/$1" "$PKGBUILDIR/$1-prev"
+	[[ -e "$1.tar.gz" ]] && mv "$1.tar.gz" "$1-prev.tar.gz"
 	if wget -q "https://aur.archlinux.org/packages/${1:0:2}/$1/$1.tar.gz"; then
 		cd "$PKGBUILDIR" && tar xf "$SRCDIR/$1.tar.gz" && cd "$1"
 	else
@@ -49,6 +68,10 @@ aur-get() {
 }
 
 aur-local-packages() {
+	# print list of installed packages from local repo
+	# -a: print all packages, including those in repo but not installed
+	# -e: exclude packages from EXCLUDE variable
+
 	local pacout=$( LANG=C pacman -Sl "$REPONAME" )
 	local allpkg="" exclude=""
 	while (($#>0)); do
@@ -75,28 +98,32 @@ aur-local-packages() {
 }
 
 aur-search () {
+	# search packages matching string on AUR
+
 	local json="$( wget "https://aur.archlinux.org/rpc.php?type=search&arg=$1" -o /dev/null -O - )"
 
-	if [[ ! "$json" ]] || grep error <( jshon <<<"$json" -e type ) > /dev/null; then
+	if [[ ! "$json" ]] || grep -q error <( jshon <<<"$json" -e type ); then
 		echo "Failed to search $1"
 		return 1
 	fi
 	local resultsn=$( jshon <<<"$json" -e results -l )
 	echo "$resultsn matching packages in AUR"
-	if [[ "$resultsn" == 0 ]]; then
-		return 1
-	fi
+	if [[ ! "$resultsn" ]] || [[ "$resultsn" == 0 ]]; then return 1; fi
 
 	exec 3< <( jshon <<<"$json" -e results -a -e Name -u )
 	exec 4< <( jshon <<<"$json" -e results -a -e Description -u )
 	local name description
 	while read name <&3 && read description <&4; do
-		echo "$name: $description"
+		echo -e "$name\n\t$description"
 	done
 	exec 3<&- 4<&-
 }
 
 aur-info() {
+	# get package info from AUR
+	# aur-info [-a] package1 [package2 [...]]
+	# -a: fill version array
+
 	if [[ "$1" == "-a" ]]; then
 		shift
 		local getver=yes
@@ -145,6 +172,10 @@ version_lt () { ! version_ge "$1" "$2"; }
 version_le () { ! version_gt "$1" "$2"; }
 
 aur-check () {
+	# check for updates on AUR
+	# -a to check every package in repo (including not installed)
+	# -v verbose output: output packages already up to date
+
 	local allpkg="" showall=""
 	while (($#>0)); do
 		case "$1" in
@@ -207,6 +238,8 @@ aur-check () {
 }
 
 aur-sobump () {
+	# check for missing dynamic libraries
+
 	local LINKER=/lib/ld-2.16.so 
 	local pkg i missing outraw outpac
 	
@@ -234,21 +267,30 @@ aur-sobump () {
 }
 
 repo-upd() {
+	# updates local repo adding most recently built packages
 	repo-add $(find "$REPODIR" -mtime -1 -type f -iname '*.tar.xz' )
 }
 
 repo-add() {
+	# repo-add package.tar.xz
+	# add package to local repo
 	command repo-add "$REPODB" "$@"
 }
 
 repo-remove() {
+	# repo-remove package
+	# remove package from local repo
 	command repo-remove "$REPODB" "$@"
 }
 
 makepkg() {
+	# wraps makepkg copying most recently built package to local repo
+
+	export PKGDEST="${REPODIR}"
 	if command makepkg "$@"; then
 		files=(*.tar.xz)
-		file="$( ( IFS=$'\n'; sort -V <<<"${files[*]}"; ) | tail -n 1 )"
+		#uncomment for only newest version
+		#file="$( ( IFS=$'\n'; sort -V <<<"${files[*]}"; ) | tail -n 1 )"
 		[[ -e "$file" ]] && repo-add "${file}"
 	fi
 }
