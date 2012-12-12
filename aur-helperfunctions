@@ -51,7 +51,7 @@ aur-get() {
 aur-local-packages() {
 	local pacout=$( LANG=C pacman -Sl "$REPONAME" )
 	local allpkg="" exclude=""
-	while [[ "$1" ]]; do
+	while (($#>0)); do
 		case "$1" in
 			"-a" ) allpkg=yes;;
 		  	"-e" ) exclude=yes;;
@@ -81,14 +81,15 @@ aur-search () {
 		echo "Failed to search $1"
 		return 1
 	fi
-	if [[ "$( jshon <<<"$json" -e results -l )" == 0 ]]; then
-		echo "0 matching packages in AUR"
+	local resultsn=$( jshon <<<"$json" -e results -l )
+	echo "$resultsn matching packages in AUR"
+	if [[ "$resultsn" == 0 ]]; then
 		return 1
 	fi
 
 	exec 3< <( jshon <<<"$json" -e results -a -e Name -u )
 	exec 4< <( jshon <<<"$json" -e results -a -e Description -u )
-	local name; local description
+	local name description
 	while read name <&3 && read description <&4; do
 		echo "$name: $description"
 	done
@@ -145,7 +146,7 @@ version_le () { ! version_gt "$1" "$2"; }
 
 aur-check () {
 	local allpkg="" showall=""
-	while [[ "$1" ]]; do
+	while (($#>0)); do
 		case "$1" in
 		  	"-v" ) showall=yes;;
 			"-a" ) allpkg="-a";;
@@ -161,7 +162,7 @@ aur-check () {
 	while read package version; do
 		packages+=("$package")
 		localversion["$package"]="$version"
-	done < <( aur-local-packages "$allpkg" -e )
+	done < <( aur-local-packages -e "$allpkg" )
 	
 	local -A aurversion=()
 	local -A aurmaint=()
@@ -188,19 +189,21 @@ aur-check () {
 		fi
 	done
 	
+	local return=1
 	local OLDIFS="$IFS"
 		IFS=$'\n'
 		local COLG="\033[1;32m" COLR="\033[1;31m" COLN="\033[0m" COLE="\033[1;39m"
 		[[ "$showall" ]] && ((${#listupdated[@]}>0)) &&\
 			echo -e "${COLG}Updated${COLN}\n${listupdated[*]}${COLN}"
 		((${#listnotmaintained[@]}>0)) &&\
-			echo -e "${COLR}Unmaintained${COLN}\n${listnotmaintained[*]}${COLN}"
+			echo -e "${COLR}Unmaintained${COLN}\n${listnotmaintained[*]}${COLN}" && return=0
 		((${#listnotfound[@]}>0)) &&\
-			echo -e "${COLR}Not found in AUR${COLN}\n${listnotfound[*]}${COLN}"
+			echo -e "${COLR}Not found in AUR${COLN}\n${listnotfound[*]}${COLN}" && return=0
 		((${#listtoupdate[@]}>0)) &&\
 			echo -e "${COLR}To update${COLE}\n${listtoupdate[*]}${COLN}" ||\
 			echo -e "${COLG}None to update${COLN}"
 	IFS="$OLDIFS"
+	(($return&${#listtoupdate[@]}==0))
 }
 
 aur-sobump () {
