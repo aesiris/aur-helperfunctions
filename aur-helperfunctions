@@ -39,7 +39,7 @@ if ! grep -q "[$REPONAME]" /etc/pacman.conf; then
 	END
 fi
 
-aur-get() {
+aur-get () {
 	## download sources for package from AUR
 
 	echo 'getting package '$1' from AUR'
@@ -57,7 +57,7 @@ aur-get() {
 	fi
 }
 
-aur-local-packages() {
+aur-local-packages () {
 	## print list of installed packages from local repo
 	## -a: print all packages, including those in repo but not installed
 	## -e: exclude packages from EXCLUDE variable
@@ -97,7 +97,7 @@ aur-search () {
 		return 1
 	fi
 	local resultsn=$( jshon <<<"$json" -e results -l )
-	echo "$resultsn matching packages in AUR"
+	echo "${resultsn-No} matching packages in AUR"
 	if [[ ! "$resultsn" ]] || [[ "$resultsn" == 0 ]]; then return 1; fi
 
 	exec 3< <( jshon <<<"$json" -e results -a -e Name -u )
@@ -110,7 +110,7 @@ aur-search () {
 	exec 3<&- 4<&-
 }
 
-aur-info() {
+aur-info () {
 	## get package info from AUR
 	## aur-info [-a] package1 [package2 [...]]
 	## -a: fill version array
@@ -197,17 +197,17 @@ aur-check () {
 		aur="${aurversion["$package"]}"
 		if [[ "$aur" ]]; then
 			if version_eq "$loc" "$aur"; then
-				listupdated=( "${listupdated[@]}" "$package" )
+				listupdated+=("$package")
 			elif version_gt "$loc" "$aur"; then
-				listupdated=( "${listupdated[@]}" "$package ($loc > $aur)" )
+				listupdated+=("$package ($loc > $aur)")
 			else
-				listtoupdate=( "${listtoupdate[@]}" "$package ($loc < $aur)" )
+				listtoupdate+=("$package ($loc < $aur)")
 			fi
 			if [[ "${aurmaint["$package"]}" == null ]]; then
-				listnotmaintained=( "${listnotmaintained[@]}" "$package" )
+				listnotmaintained+=("$package" )
 			fi
 		else
-			listnotfound=( "${listnotfound[@]}" "$package" )
+			listnotfound+=("$package")
 		fi
 	done
 	
@@ -233,8 +233,14 @@ aur-sobump () {
 
 	local LINKER=/lib/ld-2.16.so 
 	local pkg i missing outraw outpac
-	
-	for pkg in $( aur-local-packages | cut -f 1 -d " " ); do
+	local -a packages
+	if (($#>0)); then
+		packages=("$@")
+	else
+		packages=( $( aur-local-packages | cut -f 1 -d " " ) )
+	fi
+
+	for pkg in "${packages[@]}"; do
 		for i in $( pacman -Qql $pkg ); do
 			if $LINKER --verify "$i"; then	
 				missing=$( $LINKER --list "$i" 2>&1 | grep "error while loading shared libraries" | cut -f 1,3 -d ':')
@@ -257,24 +263,24 @@ aur-sobump () {
 
 }
 
-repo-upd() {
+repo-upd () {
 	## updates local repo adding most recently built packages
 	repo-add $(find "$REPODIR" -mtime -1 -type f -iname '*.tar.xz' )
 }
 
-repo-add() {
+repo-add () {
 	## repo-add package.tar.xz
 	## add package to local repo
 	command repo-add "$REPODB" "$@"
 }
 
-repo-remove() {
+repo-remove () {
 	## repo-remove package
 	## remove package from local repo
 	command repo-remove "$REPODB" "$@"
 }
 
-makepkg() {
+makepkg () {
 	## wraps makepkg copying most recently built package to local repo
 
 	export PKGDEST="${REPODIR}"
