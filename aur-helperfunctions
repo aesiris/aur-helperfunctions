@@ -5,42 +5,6 @@
 #+ 
 #+#Provided Functions
 
-XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-
-if [[ -f $XDG_CONFIG_HOME/aur-helperfunctions.conf ]]; then
-	. $XDG_CONFIG_HOME/aur-helperfunctions.conf
-else
-	[[ "$REPONAME" ]] || echo "please configure $XDG_CONFIG_HOME/aur-helperfunctions.conf and resource before doing anything"
-fi
-
-: ${REPONAME:=aur}
-: ${REPODIR:=$HOME/aur/repo}
-: ${REPODB:=$REPODIR/${REPONAME}.db.tar.gz}
-: ${SRCDIR:=$HOME/aur/src}
-: ${PKGBUILDIR:=$HOME/aur/src}
-: ${EXCLUDE:=$HOME/aur/exclude}
-
-for dir in "${SRCDIR}" "${REPODIR}" "${PKGBUILDIR}"; do
-	if [[ ! -d "$dir" ]]; then
-		echo "missing directory: $dir"
-		echo "fix before doing anything"
-	fi
-done
-
-if ! grep -q "[$REPONAME]" /etc/pacman.conf; then
-	# tells how to add local repo to /etc/pacman.conf
-	cat<<-END
-		# repo $REPONAME not configured in pacman.conf 
-		# paste and run this from a root shell, or add to pacman.conf the lines between EOFs
-		cat >> /etc/pacman.conf <<EOF
-
-		[$REPONAME]
-		SigLevel = Optional TrustAll
-		Server = file://$REPODIR
-		EOF
-	END
-fi
-
 aur-get () {
 	#+ downloads sources for package from AUR
 
@@ -294,3 +258,43 @@ makepkg () {
 		[[ -e "$file" ]] && repo-add "${files[@]}"
 	fi
 }
+
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+
+if [[ -f $XDG_CONFIG_HOME/aur-helperfunctions.conf ]]; then
+	. $XDG_CONFIG_HOME/aur-helperfunctions.conf
+else
+	[[ "$REPONAME" ]] || echo "please configure $XDG_CONFIG_HOME/aur-helperfunctions.conf and resource before doing anything"
+fi
+
+: ${REPONAME:=aur}
+: ${REPODIR:=$HOME/aur/repo}
+: ${REPODB:=$REPODIR/${REPONAME}.db.tar.gz}
+: ${SRCDIR:=$HOME/aur/src}
+: ${PKGBUILDIR:=$HOME/aur/src}
+: ${EXCLUDE:=$HOME/aur/exclude}
+
+for dir in "${SRCDIR}" "${REPODIR}" "${PKGBUILDIR}"; do
+	if [[ ! -d "$dir" ]]; then
+		echo "missing directory: $dir"
+		echo "fix before doing anything"
+	fi
+done
+
+if ! type jshon >/dev/null 2>&1; then
+	echo "jshon is required for aur-{check,search,info}: install it before running them"
+fi
+
+if ! grep -q "[$REPONAME]" /etc/pacman.conf; then
+	# tells how to add local repo to /etc/pacman.conf
+	cat<<-END
+		# repo $REPONAME not configured in pacman.conf 
+		# paste and run this from a root shell, or add to pacman.conf the lines between EOFs
+		cat >> /etc/pacman.conf <<EOF
+
+		[$REPONAME]
+		SigLevel = Optional TrustAll
+		Server = file://$REPODIR
+		EOF
+	END
+fi
