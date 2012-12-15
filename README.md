@@ -7,60 +7,60 @@ Helps managing a local repo of AUR packages
 
 
 
-##FUNCTIONS
+###Provided Functions
 
-#aur-get
+##aur-get 
 
-download sources for package from AUR
+downloads sources for package from AUR
 
-#aur-local-packages
+##aur-local-packages 
 
-print list of installed packages from local repo
+prints list of installed packages from local repo
 
--a: print all packages, including those in repo but not installed
+`-a` print all packages, including those in repo but not installed
 
--e: exclude packages from EXCLUDE variable
+`-e` exclude packages from EXCLUDE variable
 
-#aur-search 
+##aur-search 
 
-search packages matching string on AUR
+searches packages matching string on AUR
 
-#aur-info
+##aur-info 
 
-get package info from AUR
+gets package info from AUR
 
 aur-info [-a] package1 [package2 [...]]
 
--a: fill version array
+`-a` fills version array
 
-#aur-check 
+##aur-check 
 
-check for updates on AUR
+checks for updates on AUR
 
--a to check every package in repo (including not installed)
+`-a` to check every package in repo (including not installed)
 
--v verbose output: output packages already up to date
+`-v` verbose output: prints also packages already up to date
 
-#aur-sobump 
+##aur-sobump 
 
-check for missing dynamic libraries
+checks for missing dynamic libraries
 
-#repo-upd
+##repo-upd 
 
 updates local repo adding most recently built packages
 
-#repo-add
+##repo-add 
 
 repo-add package.tar.xz
 
-add package to local repo
+adds package to local repo
 
-#repo-remove
+##repo-remove 
 
 repo-remove package
 
-remove package from local repo
+removes package from local repo
 
-#makepkg
+##makepkg 
 
 wraps makepkg copying most recently built package to local repo
