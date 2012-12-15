@@ -259,12 +259,12 @@ makepkg () {
 	fi
 }
 
-XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+CONFIGFILE="${XDG_CONFIG_HOME:-$HOME/.config}/aur-helperfunctions.conf"
 
-if [[ -f $XDG_CONFIG_HOME/aur-helperfunctions.conf ]]; then
-	. $XDG_CONFIG_HOME/aur-helperfunctions.conf
+if [[ -f "$CONFIGFILE" ]]; then
+	. "$CONFIGFILE"
 else
-	[[ "$REPONAME" ]] || echo "please configure $XDG_CONFIG_HOME/aur-helperfunctions.conf and resource before doing anything"
+	[[ "$REPONAME" ]] || echo "please configure $CONFIGFILE and resource before doing anything" >&2
 fi
 
 : ${REPONAME:=aur}
@@ -276,18 +276,18 @@ fi
 
 for dir in "${SRCDIR}" "${REPODIR}" "${PKGBUILDIR}"; do
 	if [[ ! -d "$dir" ]]; then
-		echo "missing directory: $dir"
-		echo "fix before doing anything"
+		echo "missing directory: $dir" >&2
+		echo "fix before doing anything" >&2
 	fi
 done
 
 if ! type jshon >/dev/null 2>&1; then
-	echo "jshon is required for aur-{check,search,info}: install it before running them"
+	echo "jshon is required for aur-{check,search,info}: install it before running them" >&2
 fi
 
 if ! grep -q "[$REPONAME]" /etc/pacman.conf; then
 	# tells how to add local repo to /etc/pacman.conf
-	cat<<-END
+	cat >&2 <<-END
 		# repo $REPONAME not configured in pacman.conf 
 		# paste and run this from a root shell, or add to pacman.conf the lines between EOFs
 		cat >> /etc/pacman.conf <<EOF
