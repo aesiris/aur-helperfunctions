@@ -1,7 +1,7 @@
 #!/bin/bash
 #+#aur-helperfunction
 #+
-#+   Provides functions which help managing a local repo of AUR packages
+#+   Provides bash functions which help managing a local repo of AUR packages
 #+ 
 #+#Provided Functions
 
@@ -80,7 +80,7 @@ aur-search () {
 aur-info () {
 	#+ gets package info from AUR
 	#+ aur-info [-a] package1 [package2 [...]]
-	#+ `-a` fills version array
+	#+ `-a` fills version array (if run as standalone, declare it with "local -A aurversion aurmaint" beforehand)
 
 	if [[ "$1" == "-a" ]]; then
 		shift
