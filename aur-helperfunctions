@@ -56,6 +56,7 @@ aur-get () {
 	if (($?!=0)); then
 		echo "error $1" >&2
 		pushd
+		false
 	fi
 }
 
