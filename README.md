@@ -1,13 +1,13 @@
 
-##aur-helperfunction
+#aur-helperfunction
 
 
 
-Helps managing a local repo of AUR packages
+Provides functions which help managing a local repo of AUR packages
 
 
 
-###Provided Functions
+#Provided Functions
 
 ##aur-get 
 
