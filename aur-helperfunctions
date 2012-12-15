@@ -5,10 +5,12 @@
 #+ 
 #+#Provided Functions
 
-if [[ -f $HOME/.aur-helperfunctions.conf ]]; then
-	. $HOME/.aur-helperfunctions.conf
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+
+if [[ -f $XDG_CONFIG_HOME/aur-helperfunctions.conf ]]; then
+	. $XDG_CONFIG_HOME/aur-helperfunctions.conf
 else
-	[[ "$REPONAME" ]] || echo 'please configure ~/.aur-helperfunctions.conf and resource before doing anything'
+	[[ "$REPONAME" ]] || echo "please configure $XDG_CONFIG_HOME/aur-helperfunctions.conf and resource before doing anything"
 fi
 
 : ${REPONAME:=aur}
