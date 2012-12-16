@@ -94,7 +94,7 @@ aur-info () {
 	done
 	local json="$( wget "https://aur.archlinux.org/rpc.php?type=multiinfo${args}" -o /dev/null -O - )"
 
-	if [[ ! "$json" ]] || grep error <( jshon <<<"$json" -e type ) > /dev/null; then
+	if [[ ! "$json" ]] || grep -q error <( jshon <<<"$json" -e type ); then
 		echo "Failed to get any AUR info"
 		return 1
 	fi
