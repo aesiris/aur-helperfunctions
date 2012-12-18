@@ -210,8 +210,7 @@ aur-check () {
 aur-sobump () {
 	#+ checks for missing dynamic libraries
 
-	local LINKER=/lib/ld-2.16.so 
-	local pkg i missing outraw outpac
+	local pkg i missing outraw outpac LINKER
 	local -a packages
 	if (($#>0)); then
 		packages=("$@")
@@ -221,21 +220,24 @@ aur-sobump () {
 
 	for pkg in "${packages[@]}"; do
 		for i in $( pacman -Qql $pkg ); do
-			if $LINKER --verify "$i"; then	
-				missing=$( $LINKER --list "$i" 2>&1 | grep "error while loading shared libraries" | cut -f 1,3 -d ':')
-				if (( ${#missing} != 0 )); then
-					outraw+="$missing\n"
-					outpac+="$pkg\n"
+			for LINKER in /lib/ld-linux-x86-64.so.2 /lib/ld-linux.so.2; do
+				if $LINKER --verify "$i" >/dev/null ; then	
+					missing=$( $LINKER --list "$i" 2>&1 | grep "error while loading shared libraries" | cut -f 1,3 -d ':')
+					if (( ${#missing} != 0 )); then
+						outraw+="$missing"$'\n'
+						outpac+=" $pkg"$'\n'
+					fi
 				fi
-			fi
+			done
 		done
 	done
 
 	if ((${#outraw}>0)); then
-		missinglibs=$( cut -f 1 -d ':' <<<"$outraw" )
-		echo "Possible Rebuild:"
-		echo '(type echo "$missinglibs" for missing files")'
-		sort -u <<<"$outpac"
+		echo 'Missing libraries'
+		cut -f 2 -d ':' <<<"$outraw" | sort -u | grep -v "^$"
+		echo
+		echo 'Possible Rebuilds'
+		sort -u <<<"$outpac" | grep -v "^$"
 	else
 		echo "No missing libraries"
 	fi
