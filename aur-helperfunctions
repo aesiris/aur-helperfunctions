@@ -30,16 +30,16 @@ aur-local-packages () {
 	#+ `-e` exclude packages from EXCLUDE variable
 
 	local pacout=$( LANG=C pacman -Sl "$REPONAME" )
-	local allpkg="" exclude=""
+	local optallpkg="" optexclude=""
 	while (($#>0)); do
 		case "$1" in
-			"-a" ) allpkg=yes;;
-		  	"-e" ) exclude=yes;;
+			"-a" ) optallpkg=yes;;
+		  	"-e" ) optexclude=yes;;
 		esac
 		shift
 	done
 
-	if [[ "$exclude" ]] && [[ "$EXCLUDE" ]]; then
+	if [[ "$optexclude" ]] && [[ "$EXCLUDE" ]]; then
 		if [[ -e "$EXCLUDE" ]] && [[ "${EXCLUDE:0:1}" == "/" ]] ; then
 			pacout=$( grep -v -F -f "$EXCLUDE" <<<"$pacout" )
 		else
@@ -47,7 +47,7 @@ aur-local-packages () {
 			pacout=$( grep -v -F -e "$excludes" <<<"$pacout" )	
 		fi
 	fi
-	if [[ "$allpkg" ]]; then
+	if [[ "$optallpkg" ]]; then
 		awk -F " " '{ print $2,$3;}' <<<"$pacout"
 	else
 		awk -F " " '/installed/ { print $2,$3;}' <<<"$pacout"
@@ -120,8 +120,7 @@ aur-info () {
 
 version_eq () { [[ "$1" == "$2" ]]; }
 version_ge () {
-        sort=$(echo -e "$1\n$2" | sort -V)
-        lower=$(head -n 1 <<<"$sort")
+	local lower=$(echo -e "$1\n$2" | sort -V | head -n 1 )
 	[[ "$2" == "$lower" ]]
 }
 version_gt () { ! version_eq "$1" "$2" && version_ge "$1" "$2"; }
@@ -133,25 +132,38 @@ aur-check () {
 	#+ checks for updates on AUR
 	#+ `-a` to check every package in repo (including not installed)
 	#+ `-v` verbose output: prints also packages already up to date
+	#+ if packagenames are provided after options, check those in spite of local repo
 
 	local allpkg="" showall=""
-	while (($#>0)); do
+	while [[ "${1:0:1}" == "-" ]]; do
 		case "$1" in
 		  	"-v" ) showall=yes;;
 			"-a" ) allpkg="-a";;
+			* ) break;;
 		esac
 		shift
 	done
 
 	local listupdated=() listtoupdate=() listnotfound=() listnotmaintained=()
 	
+	local packagestocheck
+	if (($#==0)); then
+		packagestockeck=$( aur-local-packages -e "$allpkg" )
+	else
+		packagestockeck=$( pacman -Q "$@" 2>/dev/null )
+	fi
+	if [[ -z "$packagestockeck" ]]; then
+		echo "No package to check" >&2
+		return 1
+	fi
+
 	local -A localversion=() 
 	local -a packages=()
 	local package version
 	while read package version; do
 		packages+=("$package")
 		localversion["$package"]="$version"
-	done < <( aur-local-packages -e "$allpkg" )
+	done <<<"$packagestockeck"
 	
 	local -A aurversion=()
 	local -A aurmaint=()

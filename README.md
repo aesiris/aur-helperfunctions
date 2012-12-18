@@ -3,7 +3,7 @@
 
 
 
-Provides functions which help managing a local repo of AUR packages
+Provides bash functions which help managing a local repo of AUR packages
 
 
 
@@ -31,7 +31,7 @@ gets package info from AUR
 
 aur-info [-a] package1 [package2 [...]]
 
-`-a` fills version array
+`-a` fills version array (if run as standalone, declare it with "local -A aurversion aurmaint" beforehand)
 
 ##aur-check 
 
@@ -40,6 +40,8 @@ checks for updates on AUR
 `-a` to check every package in repo (including not installed)
 
 `-v` verbose output: prints also packages already up to date
+
+if packagenames are provided after options, check those in spite of local repo
 
 ##aur-sobump 
 
