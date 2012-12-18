@@ -74,7 +74,7 @@ aur-search () {
 	while read name <&3 && read description <&4 && read version <&5; do
 		echo -e "$name $version\n    $description"
 	done
-	exec 3<&- 4<&-
+	exec 3<&- 4<&- 5<&-
 }
 
 aur-info () {
