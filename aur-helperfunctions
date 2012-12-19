@@ -266,10 +266,11 @@ makepkg () {
 
 	export PKGDEST="${REPODIR}"
 	if command makepkg "$@"; then
-		files=(*.tar.xz)
 		#uncomment for only newest version
-		#files=("$( ( IFS=$'\n'; sort -V <<<"${files[*]}"; ) | tail -n 1 )")
-		[[ -e "$file" ]] && repo-add "${files[@]}"
+		#files=(*.tar.xz)
+		#file=$( ( IFS=$'\n'; sort -V <<<"${files[*]}"; ) | tail -n 1 )
+		#[[ -e "$file" ]] && repo-add "$file"
+		repo-add *.tar.xz
 	fi
 }
 
