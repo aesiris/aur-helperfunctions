@@ -7,18 +7,27 @@
 
 aur-get () {
 	#+ downloads sources for package from AUR
+	if [[ -z "$1" ]] || ! [[ "$1" =~ ^[[:alpha:][:digit:]-]*$ ]]; then return 1; fi
 
 	echo 'getting package '$1' from AUR'
 	pushd "$SRCDIR" || return 1
-	[[ -d "$PKGBUILDIR/$1" ]] && { rm -rf "$PKGBUILDIR/$1-prev"; mv "$PKGBUILDIR/$1" "$PKGBUILDIR/$1-prev"; }
-	[[ -e "$1.tar.gz" ]] && { rm -f "$1-prev.tar.gz"; mv "$1.tar.gz" "$1-prev.tar.gz"; }
+
+	if [[ -d "$PKGBUILDIR/prev" ]]; then
+		local PREV="$PKGBUILDIR/prev/$1"
+		[[ -d "$PKGBUILDIR/$1" ]] && { rm -rf "$PREV"; mv "$PKGBUILDIR/$1" "$PREV"; }
+		[[ -e "$1.tar.gz" ]] && { rm -f "$PREV.tar.gz"; mv "$1.tar.gz" "$PREV.tar.gz"; }
+	else
+		rm rf "$PKGBUILDIR/$1"
+		rm -f "$1.tar.gz"
+	fi
+
 	if wget "https://aur.archlinux.org/packages/${1:0:2}/$1/$1.tar.gz"; then
-		cd "$PKGBUILDIR" && tar xf "$SRCDIR/$1.tar.gz" &&\
-		cd "$1" && {
-			if [[ -d ../"$1"-prev/ ]]; then
+		tar -xf "$SRCDIR/$1.tar.gz" -C "$PKGBUILDIR" &&\
+		cd "$PKGBUILDIR/$1" && {
+			if [[ -d "$PREV" ]]; then
 				local COLN="\033[0m" COLE="\033[1;39m"
 				echo -e "${COLE}diff from old version:${COLN}"
-				diff -r ../"$1"-prev .
+				diff -r "$PREV" .
 				echo -e "${COLE}end diff${COLN}"
 			fi
 			true
@@ -26,6 +35,7 @@ aur-get () {
 	else
 		false
 	fi
+
 	if (($?!=0)); then
 		echo "error $1" >&2
 		pushd
