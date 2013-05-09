@@ -231,44 +231,50 @@ aur-check () {
 	(($return&${#listtoupdate[@]}==0))
 }
 
-aur-sobump-pre () {
-	#+ checks missing dynamic libraries
-
+aur-sobump () {
+	#+ checks if any local package has binaries depending from given libraries
+	#+ `-p` to check all libraries in given packages
+	#+ ex: aur-sobump libz.so
+	#+ ex: aur-sobump -p zlib
 	local pkg i provided linked linkedraw found LINKER
 	local -a packages=()
 
-	if (($#>0)); then
-		provided=$( pacman -Qql "$@" )
+	if [[ "$1" == "-p" ]]; then
+		shift
+		if (($#>0)); then
+			provided=$( pacman -Qql "$@" | while read i; do basename "$i"; done )
+		fi
+	else
+		provided=( "$@" )
 	fi
 	if ((${#provided}==0)); then
 		echo "input error" >&2 
 		return 1
 	fi
 	
-	#packages=( $( aur-local-packages | cut -f 1 -d " " | ( IFS=$'\n'; grep -v -F "$*" ) )  )
 	while read pkg; do
-		packages+=( $( LANG=C pacman -Qi $pkg | grep 'Requires' | cut -f 2 -d ':' | grep -v '^None$' ) )
+		packages+=( "$pkg" )
 	done < <( aur-local-packages | cut -f 1 -d " " )
 
 	for pkg in "${packages[@]}"; do
-		linkedraw=$(
+		needed=$(
 			for i in $( pacman -Qql $pkg ); do
 				for LINKER in /lib/ld-linux-x86-64.so.2 /lib/ld-linux.so.2; do
 					if $LINKER --verify "$i" >/dev/null ; then
-						$LINKER --list "$i"
+						LANG=C readelf -d "$i" | sed -n -e 's/.*NEEDED.*\[\(.*\)\]$/\1/p'
 					fi
 				done
 			done
 		)
- 		linked=$( sed -n -e 's:.*=>[^/]*\(/.*\) (0x.*:\1:p' <<<"$linkedraw" )
-		found=$( comm -12 <( sort -u <<<"$linked" ) <( sort -u <<<"$provided" ) )
+
+		found=$( comm -12 <( sort -u <<<"$needed" ) <( sort -u <<<"$provided" ) )
 		if ((${#found}>0)); then
-			echo -e "$pkg needs:\n$found\n\n"
+			echo -e "$pkg depends on:\n$found\n"
 		fi
 	done
 }
 
-aur-sobump () {
+aur-depcheck () {
 	#+ checks for missing dynamic libraries
 
 	local pkg i missing outraw outpac LINKER
