@@ -45,6 +45,16 @@ if packagenames are provided after options, check those in spite of local repo
 
 ##aur-sobump 
 
+checks if any local package has binaries depending from given libraries
+
+`-p` to check all libraries in given packages
+
+ex: aur-sobump libz.so
+
+ex: aur-sobump -p zlib
+
+##aur-depcheck 
+
 checks for missing dynamic libraries
 
 ##repo-upd 
