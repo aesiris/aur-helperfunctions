@@ -3,12 +3,13 @@
 _pkgname='aur-helperfunctions'
 pkgname='aur-helperfunctions'
 pkgver=1.2.1
-pkgrel=1
+pkgrel=2
 pkgdesc='Collection of bash functions that help managing a local repo of AUR packages'
 arch=('any')
 license=('GPL')
 depends=('jshon' 'wget')
 makedepends=('git')
+backup=('etc/aur-helperfunctions.conf')
 source=("git://github.com/aesiris/${_pkgname}#tag=${pkgver}")
 sha256sums=('SKIP')
 
