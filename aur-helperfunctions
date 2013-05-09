@@ -348,7 +348,11 @@ CONFIGFILE="${XDG_CONFIG_HOME:-$HOME/.config}/aur-helperfunctions.conf"
 if [[ -f "$CONFIGFILE" ]]; then
 	. "$CONFIGFILE"
 else
-	[[ "$REPONAME" ]] || echo "please configure $CONFIGFILE and resource before doing anything" >&2
+	if ! [[ "$REPONAME" ]]; then
+		echo "please configure $CONFIGFILE and resource before doing anything" >&2
+		echo "see /etc/aur-helperfunctions.conf for example configuration" >&2
+		false
+	fi
 fi
 
 : ${REPONAME:=aur}
