@@ -2,8 +2,8 @@
 
 _pkgname='aur-helperfunctions'
 pkgname='aur-helperfunctions'
-pkgver=1.2.1
-pkgrel=2
+pkgver=1.2.2
+pkgrel=1
 pkgdesc='Collection of bash functions that help managing a local repo of AUR packages'
 arch=('any')
 license=('GPL')
