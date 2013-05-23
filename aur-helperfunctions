@@ -137,16 +137,6 @@ aur-info () {
 	fi
 }
 
-version_eq () { [[ "$1" == "$2" ]]; }
-version_ge () {
-	local lower=$(echo -e "$1\n$2" | sort -V | head -n 1 )
-	[[ "$2" == "$lower" ]]
-}
-version_gt () { ! version_eq "$1" "$2" && version_ge "$1" "$2"; }
-version_ne () { ! version_eq "$1" "$2"; }
-version_lt () { ! version_ge "$1" "$2"; }
-version_le () { ! version_gt "$1" "$2"; }
-
 aur-check () {
 	#+ checks for updates on AUR
 	#+ `-a` to check every package in repo (including not installed)
@@ -197,9 +187,10 @@ aur-check () {
 		loc="${localversion["$package"]}"
 		aur="${aurversion["$package"]}"
 		if [[ "$aur" ]]; then
-			if version_eq "$loc" "$aur"; then
+			r=$( vercmp "$loc" "$aur" )
+			if ((r==0)); then
 				listupdated+=("$package")
-			elif version_gt "$loc" "$aur"; then
+			elif ((r>0)); then
 				listupdated+=("$package ($loc > $aur)")
 			else
 				listtoupdate+=("$package ($loc < $aur)")
