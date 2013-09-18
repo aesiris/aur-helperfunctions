@@ -24,11 +24,17 @@ aur-get () {
 	if wget "https://aur.archlinux.org/packages/${1:0:2}/$1/$1.tar.gz"; then
 		tar -xf "$SRCDIR/$1.tar.gz" -C "$PKGBUILDIR" &&\
 		cd "$PKGBUILDIR/$1" && {
+			local COLN="\033[0m" COLE="\033[1;39m"
 			if [[ -d "$PREV" ]]; then
-				local COLN="\033[0m" COLE="\033[1;39m"
 				echo -e "${COLE}diff from old version:${COLN}"
 				diff -r "$PREV" .
 				echo -e "${COLE}end diff${COLN}"
+			else
+				echo -e "${COLE}files in current directory${COLN}"
+				ls
+				echo -e "${COLE}PKGBUILD:${COLN}"
+				cat PKGBUILD
+				echo -e "${COLE}end PKGBUILD${COLN}"
 			fi
 			true
 		}
@@ -146,7 +152,7 @@ aur-check () {
 	local allpkg="" showall=""
 	while [[ "${1:0:1}" == "-" ]]; do
 		case "$1" in
-		  	"-v" ) showall=yes;;
+			"-v" ) showall=yes;;
 			"-a" ) allpkg="-a";;
 			* ) break;;
 		esac
