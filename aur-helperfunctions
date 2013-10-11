@@ -7,7 +7,7 @@
 
 aur-get () {
 	#+ downloads sources for package from AUR
-	if [[ -z "$1" ]] || ! [[ "$1" =~ ^[[:alpha:][:digit:]-]*$ ]]; then return 1; fi
+	if [[ -z "$1" ]] || ! [[ "$1" =~ ^[[:alpha:][:digit:]_-]*$ ]]; then return 1; fi
 
 	echo 'getting package '$1' from AUR'
 	pushd "$SRCDIR" || return 1
