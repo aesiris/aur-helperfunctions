@@ -310,19 +310,19 @@ aur-depcheck () {
 
 repo-upd () {
 	#+ updates local repo adding most recently built packages
-	repo-add $(find "$REPODIR" -mtime -1 -type f -iname '*.tar.xz' )
+	repo-add $(find "$REPODIR" -mtime -1 -type f -iname '*.pkg.tar.xz' )
 }
 
 repo-add () {
 	#+ repo-add package.tar.xz
 	#+ adds package to local repo
-	command repo-add "$REPODB" "$@"
+	command repo-add -s "$REPODB" "$@"
 }
 
 repo-remove () {
 	#+ repo-remove package
 	#+ removes package from local repo
-	command repo-remove "$REPODB" "$@"
+	command repo-remove -s "$REPODB" "$@"
 }
 
 makepkg () {
