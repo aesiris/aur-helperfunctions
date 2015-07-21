@@ -329,15 +329,7 @@ makepkg () {
 	#+ wraps makepkg copying most recently built package to local repo
 
 	export PKGDEST="${REPODIR}"
-	if command makepkg "$@"; then
-		if [[ "$REPOADDALL" ]]; then 
-			repo-add *.tar.xz
-		else
-			files=(*.tar.xz)
-			file=$( ( IFS=$'\n'; sort -V <<<"${files[*]}"; ) | tail -n 1 )
-			[[ -e "$file" ]] && repo-add "$file"
-		fi
-	fi
+	command makepkg "$@"
 }
 
 CONFIGFILE="${XDG_CONFIG_HOME:-$HOME/.config}/aur-helperfunctions.conf"
